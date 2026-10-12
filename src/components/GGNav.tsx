@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { classCards, contact } from "./mclubData";
+import { contact } from "./mclubData";
 import { Phone } from "lucide-react";
 
 const navItems = [
@@ -242,20 +242,6 @@ export default function GGNav() {
             </Link>
           ))}
         </nav>
-
-        <div className="drawer-feature">
-          {classCards.slice(0, 2).map((item) => (
-            <Link
-              href="/classes"
-              key={item.title}
-              style={{ "--drawer-image": `url(${item.image})` } as React.CSSProperties}
-              onClick={() => setDrawerOpen(false)}
-            >
-              <small>{item.kicker}</small>
-              <span>{item.title}</span>
-            </Link>
-          ))}
-        </div>
 
         <a className="button primary" href={contact.phoneHref}>
           Book by phone

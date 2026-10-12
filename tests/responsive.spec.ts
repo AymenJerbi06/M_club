@@ -91,6 +91,79 @@ test("portrait header and compact footer remain usable", async ({ page }, info) 
   expect(footer?.height).toBeLessThan(info.project.name.includes("phone") ? 950 : 600);
 });
 
+test("phone home hero leaves room for the footage", async ({ page }, info) => {
+  test.skip(!["small-phone", "phone", "webkit-phone"].includes(info.project.name));
+  await page.goto("/");
+  await page.evaluate(() => document.fonts.ready);
+  const logo = await page.locator(".hero-content-logo").boundingBox();
+  expect(logo?.width).toBe(144);
+  const hero = await page.locator(".section-hero-home").boundingBox();
+  const content = await page.locator(".hero-content-btm").boundingBox();
+  const groupCenter = (logo!.y + content!.y + content!.height) / 2;
+  expect(Math.abs(groupCenter - (hero!.y + hero!.height / 2))).toBeLessThan(2);
+  expect(Math.abs(hero!.y + hero!.height - page.viewportSize()!.height)).toBeLessThan(2);
+  const buttons = await page.locator(".hero-content-btm .button").all();
+  const first = await buttons[0].boundingBox();
+  const second = await buttons[1].boundingBox();
+  expect(first?.height).toBeGreaterThanOrEqual(44);
+  expect(first?.width).toBeLessThan(170);
+  expect(Math.abs((first?.y ?? 0) - (second?.y ?? 0))).toBeLessThan(2);
+  const copy = await page.locator(".hero-content-btm .heading-small").boundingBox();
+  const arrow = await page.locator(".hero-content-home .arrow-down").boundingBox();
+  expect((arrow?.y ?? 0) - ((copy?.y ?? 0) + (copy?.height ?? 0))).toBeGreaterThan(8);
+});
+
+test("the menu contains navigation without unrelated class promos", async ({ page }, info) => {
+  test.skip(info.project.name === "desktop");
+  await page.goto("/");
+  await page.getByRole("button", { name: "Open menu", exact: true }).click();
+  const menu = page.getByRole("dialog", { name: "Menu", exact: true });
+  await expect(menu.locator(".drawer-nav a")).toHaveCount(10);
+  await expect(menu.locator(".drawer-feature")).toHaveCount(0);
+  await expect(menu).not.toContainText("Ride the Room");
+  await expect(menu).not.toContainText("Step Freestyle");
+  await expect(menu.getByRole("link", { name: "Book by phone" })).toBeVisible();
+});
+
+test("home media and page chrome reach the viewport edges", async ({ page }) => {
+  await page.goto("/");
+  await page.waitForFunction(() => Boolean(document.documentElement.style.getPropertyValue("--mclub-live-chrome-offset")));
+  const edges = await page.evaluate(() => {
+    const selectors = [".site-header", ".offer-banner", ".section-hero-home"];
+    return selectors.map(selector => {
+      const rect = document.querySelector(selector)!.getBoundingClientRect();
+      return { left: rect.left, right: rect.right, width: innerWidth };
+    });
+  });
+  for (const edge of edges) {
+    expect(edge.left).toBe(0);
+    expect(edge.right).toBe(edge.width);
+  }
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor)).toBe("rgb(29, 27, 22)");
+  expect(await page.locator(".nav-scrim").evaluate(el => getComputedStyle(el).borderWidth)).toBe("0px");
+  await page.getByRole("button", { name: "Close offer banner" }).click();
+  await expect.poll(() => page.evaluate(() => {
+    const hero = document.querySelector(".section-hero-home")!.getBoundingClientRect();
+    const header = document.querySelector(".site-header")!.getBoundingClientRect();
+    return Math.abs(hero.top - header.bottom);
+  })).toBeLessThanOrEqual(1);
+});
+
+test("home keeps its original clip and frames out the encoded black bands", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("/");
+  const video = page.locator(".home-hero-video");
+  await expect(video).toHaveAttribute("data-video-original", "/mclub/classes-motion.mp4");
+  await expect.poll(() => video.evaluate(el => (el as HTMLVideoElement).currentTime), { timeout: 20000 }).toBeGreaterThan(0.2);
+  const framing = await video.evaluate(el => {
+    const frame = el.parentElement!.getBoundingClientRect();
+    const media = el.getBoundingClientRect();
+    return { ratio: media.height / frame.height, centerDelta: Math.abs(media.y + media.height / 2 - frame.y - frame.height / 2) };
+  });
+  expect(framing.ratio).toBeGreaterThan(3.15);
+  expect(framing.centerDelta).toBeLessThan(1);
+});
+
 test("the original home Join video plays on phones and desktop", async ({ browser, baseURL }, info) => {
   test.skip(!["phone", "desktop", "webkit-phone"].includes(info.project.name));
   const context = await browser.newContext({ ...info.project.use, reducedMotion: "no-preference" });

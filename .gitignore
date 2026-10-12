@@ -1,0 +1,24 @@
+node_modules/
+.next*/
+.vercel/
+out/
+coverage/
+playwright-report/
+test-results/
+.qa*/
+.qa*.cjs
+.media-cache/
+*.log
+*.tsbuildinfo
+next-env.d.ts
+.env*
+!.env.example
+
+# Original media and project research stay local. Web-ready assets are tracked.
+/Media/
+/content/
+/workflow/
+/Logo.jpg
+/mclub-*.png
+/public/**/*.mp4
+!/public/optimized/*.mp4
